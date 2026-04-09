@@ -1,0 +1,95 @@
+import { z } from "zod";
+import { COOKIE_NAME } from "../shared/const.js";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import * as db from "./db";
+
+export const appRouter = router({
+  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
+  system: systemRouter,
+  auth: router({
+    me: publicProcedure.query((opts) => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return {
+        success: true,
+      } as const;
+    }),
+  }),
+
+  oauth: router({
+    getOrCreateUser: publicProcedure
+      .input(
+        z.object({
+          provider: z.enum(["google", "facebook"]),
+          oauthId: z.string(),
+          name: z.string().nullable(),
+          email: z.string().nullable(),
+          profilePictureUrl: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const user = await db.getOrCreateOAuthUser(
+          input.provider,
+          input.oauthId,
+          input.name,
+          input.email,
+          input.profilePictureUrl
+        );
+
+        if (!user) {
+          throw new Error("Failed to create or get OAuth user");
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          openId: user.openId,
+        };
+      }),
+
+    getProfile: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserProfileWithOAuth(ctx.user.id);
+    }),
+  }),
+
+  contributions: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return db.getUserContributions(ctx.user.id);
+    }),
+
+    add: protectedProcedure
+      .input(
+        z.object({
+          stationId: z.string(),
+          fuelType: z.enum(["gasolina", "aditivada", "etanol", "diesel", "gnv"]),
+          price: z.string().or(z.number()),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const id = await db.addContribution({
+          userId: ctx.user.id,
+          stationId: input.stationId,
+          fuelType: input.fuelType,
+          price: String(input.price),
+        });
+
+        if (!id) {
+          throw new Error("Failed to add contribution");
+        }
+
+        return { id };
+      }),
+
+    byStation: publicProcedure
+      .input(z.object({ stationId: z.string() }))
+      .query(async ({ input }) => {
+        return db.getStationContributions(input.stationId);
+      }),
+  })
+});
+
+export type AppRouter = typeof appRouter;

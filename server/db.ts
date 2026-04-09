@@ -1,0 +1,184 @@
+import { eq, and } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
+import { InsertUser, users, userProfiles, contributions } from "../drizzle/schema";
+import { ENV } from "./_core/env";
+import type { UserProfile, InsertUserProfile, Contribution, InsertContribution } from "../drizzle/schema";
+
+let _db: ReturnType<typeof drizzle> | null = null;
+
+// Lazily create the drizzle instance so local tooling can run without a DB.
+export async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      const sqlitePath = process.env.DATABASE_URL.replace("file:", "");
+      const sqlite = new Database(sqlitePath);
+      _db = drizzle(sqlite);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+
+export async function upsertUser(user: InsertUser): Promise<void> {
+  if (!user.openId) {
+    throw new Error("User openId is required for upsert");
+  }
+
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+
+  try {
+    const values = {
+      openId: user.openId,
+      name: user.name ?? null,
+      email: user.email ?? null,
+      loginMethod: user.loginMethod ?? null,
+      lastSignedIn: user.lastSignedIn ?? new Date().toISOString(),
+      role: user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user"),
+    };
+
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
+      set: {
+        name: values.name,
+        email: values.email,
+        loginMethod: values.loginMethod,
+        lastSignedIn: values.lastSignedIn,
+        role: values.role,
+      },
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+
+export async function getUserByOpenId(openId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getOrCreateOAuthUser(
+  oauthProvider: "google" | "facebook",
+  oauthId: string,
+  name: string | null,
+  email: string | null,
+  profilePictureUrl?: string
+) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const existingProfile = await db
+      .select()
+      .from(userProfiles)
+      .where(
+        and(
+          eq(userProfiles.oauthProvider, oauthProvider),
+          eq(userProfiles.oauthId, oauthId)
+        )
+      );
+
+    if (existingProfile.length > 0) {
+      const userId = existingProfile[0].userId;
+      await db
+        .update(users)
+        .set({ lastSignedIn: new Date().toISOString() })
+        .where(eq(users.id, userId));
+      
+      const user = await db.select().from(users).where(eq(users.id, userId));
+      return user[0] || null;
+    }
+
+    const openId = `${oauthProvider}-${oauthId}`;
+    const insertResult = await db.insert(users).values({
+      openId,
+      name,
+      email,
+      loginMethod: oauthProvider,
+      role: "user",
+      lastSignedIn: new Date().toISOString(),
+    });
+
+    const userId = Number(insertResult.lastInsertRowid);
+
+    await db.insert(userProfiles).values({
+      userId,
+      oauthProvider,
+      oauthId,
+      profilePictureUrl,
+    });
+
+    const user = await db.select().from(users).where(eq(users.id, userId));
+    return user[0] || null;
+  } catch (error) {
+    console.error("Error creating OAuth user:", error);
+    return null;
+  }
+}
+
+export async function getUserProfileWithOAuth(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const profile = await db
+    .select()
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId));
+
+  if (profile.length === 0) return null;
+
+  const user = await db.select().from(users).where(eq(users.id, userId));
+  if (user.length === 0) return null;
+
+  return {
+    ...profile[0],
+    user: user[0],
+  };
+}
+
+export async function getUserContributions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(contributions)
+    .where(eq(contributions.userId, userId));
+}
+
+export async function addContribution(data: InsertContribution) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.insert(contributions).values(data);
+    return Number(result.lastInsertRowid);
+  } catch (error) {
+    console.error("Error adding contribution:", error);
+    return null;
+  }
+}
+
+export async function getStationContributions(stationId: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(contributions)
+    .where(eq(contributions.stationId, stationId));
+}
