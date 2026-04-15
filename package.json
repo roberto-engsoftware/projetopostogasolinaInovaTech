@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -k \"npm run dev:server\" \"npm run dev:metro\"",
     "dev:server": "tsx watch server/_core/index.ts",
-    "dev:metro": "npx expo start",
+    "dev:metro": "expo start -c",
     "build": "esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
@@ -14,9 +14,10 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "expo:start": "node -r ./scripts/node18-polyfills.cjs ./node_modules/expo/bin/cli start",
-    "android": "node -r ./scripts/node18-polyfills.cjs ./node_modules/expo/bin/cli start --android",
-    "ios": "node -r ./scripts/node18-polyfills.cjs ./node_modules/expo/bin/cli start --ios",
+    "expo:start": "expo start -c",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "qr": "node scripts/generate_qr.mjs"
   },
   "dependencies": {
@@ -30,7 +31,7 @@
     "@trpc/react-query": "11.7.2",
     "@trpc/server": "11.7.2",
     "axios": "^1.13.2",
-    "better-sqlite3": "^12.8.0",
+    "better-sqlite3": "^12.9.0",
     "clsx": "^2.1.1",
     "cookie": "^1.1.1",
     "dotenv": "^16.6.1",
