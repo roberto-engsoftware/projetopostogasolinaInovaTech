@@ -50,8 +50,9 @@ Ao constar no terminal que o código subiu sem erros, você tem dois caminhos:
 
 #### A. Testar Diretamente pelo Celular (Físico)
 1. Instale o aplicativo **Expo Go** disponível de graça na [Google Play (Android)](https://play.google.com/store/apps/details?id=host.exp.exponent) ou [App Store (iOS)](https://apps.apple.com/app/expo-go/id982107779).
-2. Abra seu app de "Câmera" ou o próprio "Expo Go", e aponte para o **QR Code gigante** que o próprio terminal do seu computador (Powershell/CMD) desenhou.
-3. Se estiverem na mesma rede de Wi-Fi, a mágica acontece.
+2. Execute pnpm run expo:start
+3. Abra seu app de "Câmera" ou o próprio "Expo Go", e aponte para o **QR Code gigante** que o próprio terminal do seu computador (Powershell/CMD) desenhou.
+4. Se estiverem na mesma rede de Wi-Fi, a mágica acontece.
 
 #### B. Testar Diretamente pelo Computador (Web)
 1. Sem precisar sair do mesmo terminal, basta apertar a tecla **`w`**.
