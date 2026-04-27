@@ -33,22 +33,22 @@ export default function LoginScreen() {
   }, [state.user]);
 
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
-    setLoading(provider);
-    setError('');
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  setLoading(provider);
+  setError('');
+  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    try {
-      await startOAuthLogin();
-      // startOAuthLogin redirects away or opens a web browser,
-      // the callback will be handled by app/oauth/callback.tsx
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha no login com o provedor selecionado.';
-      setError(message);
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoading(null);
-    }
-  };
+  try {
+    await startOAuthLogin(provider);
+    // startOAuthLogin redirects away or opens a web browser,
+    // the callback will be handled by app/oauth/callback.tsx
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Falha no login com o provedor selecionado.';
+    setError(message);
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  } finally {
+    setLoading(null);
+  }
+};
 
   return (
     <ScreenContainer

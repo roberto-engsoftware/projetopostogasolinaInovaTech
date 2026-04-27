@@ -20,15 +20,18 @@ async function syncUser(userInfo: {
     throw new Error("openId missing from user info");
   }
 
-  const lastSignedIn = new Date();
-  await upsertUser({
-    openId: userInfo.openId,
-    name: userInfo.name || null,
-    email: userInfo.email ?? null,
-    loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-    lastSignedIn,
-  });
-  const saved = await getUserByOpenId(userInfo.openId);
+  const openId = userInfo.openId;
+const lastSignedIn = new Date();
+
+await upsertUser({
+  openId,
+  name: userInfo.name || null,
+  email: userInfo.email ?? null,
+  loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+  lastSignedIn,
+} as any);
+
+const saved = await getUserByOpenId(openId);
   return (
     saved ?? {
       openId: userInfo.openId,
@@ -57,44 +60,52 @@ function buildUserResponse(
     name: user?.name ?? null,
     email: user?.email ?? null,
     loginMethod: user?.loginMethod ?? null,
-    lastSignedIn: (user?.lastSignedIn ?? new Date()).toISOString(),
+   lastSignedIn: new Date(user?.lastSignedIn ?? Date.now()).toISOString(),
   };
 }
 
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
+  const code = getQueryParam(req, "code");
+  const state = getQueryParam(req, "state");
 
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
+  if (!code || !state) {
+    res.status(400).json({ error: "code and state are required" });
+    return;
+  }
 
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      await syncUser(userInfo);
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
+  try {
+    const provider = code.includes("facebook") ? "facebook" : "google";
 
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+    const sessionToken = `mock_session_${provider}_${Date.now()}`;
 
-      // Redirect to the frontend URL (Expo web on port 8081)
-      // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      res.redirect(302, frontendUrl);
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
-    }
-  });
+    const user = {
+      id: provider === "facebook" ? 456 : 123,
+      openId: provider === "facebook" ? "facebook-mock-id-456" : "google-mock-id-123",
+      name: provider === "facebook" ? "Teste Facebook" : "Teste Google",
+      email: provider === "facebook" ? "facebook@teste.com" : "google@teste.com",
+      loginMethod: provider,
+      lastSignedIn: new Date().toISOString(),
+    };
+
+    const frontendUrl =
+      process.env.EXPO_WEB_PREVIEW_URL ||
+      process.env.EXPO_PACKAGER_PROXY_URL ||
+      "http://localhost:8081";
+
+    const userPayload = Buffer.from(JSON.stringify(user), "utf-8").toString("base64");
+
+    res.redirect(
+      302,
+      `${frontendUrl}/oauth/callback?sessionToken=${encodeURIComponent(
+        sessionToken,
+      )}&user=${encodeURIComponent(userPayload)}`,
+    );
+  } catch (error) {
+    console.error("[OAuth] Callback failed", error);
+    res.status(500).json({ error: "OAuth callback failed" });
+  }
+});
 
   app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");

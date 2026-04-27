@@ -1,3 +1,4 @@
+import { useApp } from "@/context/AppContext";
 import { ThemedView } from "@/components/themed-view";
 import * as Api from "@/lib/_core/api";
 import * as Auth from "@/lib/_core/auth";
@@ -9,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OAuthCallback() {
   const router = useRouter();
+  const { dispatch } = useApp();
   const params = useLocalSearchParams<{
     code?: string;
     state?: string;
@@ -54,6 +56,10 @@ export default function OAuthCallback() {
               };
               await Auth.setUserInfo(userInfo);
               console.log("[OAuth] User info stored:", userInfo);
+              dispatch({
+  type: "SET_USER",
+  user: userInfo,
+});
             } catch (err) {
               console.error("[OAuth] Failed to parse user data:", err);
             }
@@ -204,7 +210,10 @@ export default function OAuthCallback() {
               lastSignedIn: new Date(result.user.lastSignedIn || Date.now()),
             };
             await Auth.setUserInfo(userInfo);
-            console.log("[OAuth] User info stored:", userInfo);
+            console.log("[OAuth] User info stored:", userInfo);dispatch({
+  type: "SET_USER",
+  user: userInfo,
+});
           } else {
             console.log("[OAuth] No user data in result");
           }

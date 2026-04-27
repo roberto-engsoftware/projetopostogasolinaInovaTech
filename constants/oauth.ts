@@ -78,7 +78,7 @@ export const getRedirectUri = () => {
   }
 };
 
-export const getLoginUrl = () => {
+export const getLoginUrl = (provider?: 'google' | 'facebook') => {
   const redirectUri = getRedirectUri();
   const state = encodeState(redirectUri);
 
@@ -87,6 +87,10 @@ export const getLoginUrl = () => {
   url.searchParams.set("redirectUri", redirectUri);
   url.searchParams.set("state", state);
   url.searchParams.set("type", "signIn");
+
+  if (provider) {
+    url.searchParams.set("provider", provider);
+  }
 
   return url.toString();
 };
@@ -101,8 +105,8 @@ export const getLoginUrl = () => {
  *
  * @returns Always null, the callback is handled via deep link.
  */
-export async function startOAuthLogin(): Promise<string | null> {
-  const loginUrl = getLoginUrl();
+export async function startOAuthLogin(provider?: 'google' | 'facebook'): Promise<string | null> {
+  const loginUrl = getLoginUrl(provider);
 
   if (ReactNative.Platform.OS === "web") {
     // On web, just redirect
