@@ -65,29 +65,39 @@ export default function ListScreen() {
     let list = stationsWithDistance;
 
     // Filtro de busca
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.neighborhood.toLowerCase().includes(q) ||
-        s.brand.toLowerCase().includes(q)
-      );
-    }
+  // Filtro de busca
+if (searchQuery.trim()) {
+  const normalizeText = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
 
-    if (!showAllStations) {
-      // Filtro de distância
-      list = list.filter(s => (s.distance ?? 999) <= maxDistance);
+  const q = normalizeText(searchQuery);
 
-      // Filtro: apenas postos que têm o combustível selecionado
-      list = list.filter(s => s.prices.some(p => p.type === fuelType));
+  list = list.filter(s =>
+    normalizeText(s.name).includes(q) ||
+    normalizeText(s.neighborhood).includes(q) ||
+    normalizeText(s.brand).includes(q) ||
+    normalizeText(s.address).includes(q)
+  );
+}
 
-      if (showConfirmedOnly) {
-        list = list.filter((s) => {
-          const selectedPrice = s.prices.find((p) => p.type === fuelType);
-          return !!selectedPrice && getPriceConfidence(selectedPrice) === 'confirmed';
-        });
-      }
-    }
+  if (!showAllStations && !searchQuery.trim()) {
+  // Filtro de distância
+  list = list.filter(s => (s.distance ?? 999) <= maxDistance);
+}
+
+// Filtro: apenas postos que têm o combustível selecionado
+list = list.filter(s => s.prices.some(p => p.type === fuelType));
+
+if (showConfirmedOnly) {
+  list = list.filter((s) => {
+    const selectedPrice = s.prices.find((p) => p.type === fuelType);
+    return !!selectedPrice && getPriceConfidence(selectedPrice) === 'confirmed';
+  });
+}
 
     // Ordenação
     list = [...list].sort((a, b) => {

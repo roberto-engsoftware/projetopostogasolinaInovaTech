@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -161,13 +162,22 @@ export default function StationDetailScreen() {
   };
 
   const handleDirections = () => {
-    const url = Platform.OS === 'ios'
+  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
+
+  if (Platform.OS === 'web') {
+    Linking.openURL(googleMapsUrl);
+    return;
+  }
+
+  const appUrl =
+    Platform.OS === 'ios'
       ? `maps://app?daddr=${station.latitude},${station.longitude}`
-      : `geo:${station.latitude},${station.longitude}?q=${encodeURIComponent(station.name)}`;
-    Linking.openURL(url).catch(() => {
-      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`);
-    });
-  };
+      : `geo:${station.latitude},${station.longitude}?q=${station.latitude},${station.longitude}(${encodeURIComponent(station.name)})`;
+
+  Linking.openURL(appUrl).catch(() => {
+    Linking.openURL(googleMapsUrl);
+  });
+};
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

@@ -41,8 +41,32 @@ export interface Station {
 const now = new Date();
 const hoursAgo = (h: number) => new Date(now.getTime() - h * 60 * 60 * 1000);
 const daysAgo = (d: number) => new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+function inferNeighborhood(address: string, latitude: number, longitude: number): string {
+  const text = address
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
-export const STATIONS: Station[] = [
+  if (text.includes('autaz mirim')) return 'São José';
+  if (text.includes('cosme ferreira')) return 'Coroado';
+  if (text.includes('torquato tapajos')) return 'Flores';
+  if (text.includes('jacira reis')) return 'Chapada';
+  if (text.includes('turismo')) return 'Tarumã';
+  if (text.includes('general rodrigo otavio')) return 'Japiim';
+  if (text.includes('arquiteto jose henriques')) return 'Colônia Terra Nova';
+  if (text.includes('valerio botelho')) return 'Centro';
+  if (text.includes('tancredo neves')) return 'Tancredo Neves';
+  if (text.includes('conde de sergimirim')) return 'Cidade Nova';
+
+  if (latitude > -3.03 && longitude < -60.04) return 'Tarumã';
+  if (latitude > -3.04 && longitude > -60.02) return 'Cidade Nova';
+  if (latitude < -3.12 && longitude > -60.02) return 'Distrito Industrial';
+  if (latitude < -3.09 && longitude < -60.03) return 'Dom Pedro';
+  if (longitude > -59.97) return 'São José';
+
+  return 'Manaus';
+}
+const RAW_STATIONS: Station[] = [
   {
     "id": "osm-1366693707",
     "name": "Posto Atem",
@@ -2084,6 +2108,13 @@ export const STATIONS: Station[] = [
     ]
   }
 ];
+export const STATIONS: Station[] = RAW_STATIONS.map((station) => ({
+  ...station,
+  neighborhood:
+    station.neighborhood && station.neighborhood !== 'Manaus'
+      ? station.neighborhood
+      : inferNeighborhood(station.address, station.latitude, station.longitude),
+}));
 
 export const FUEL_TYPE_LABELS: Record<FuelType, string> = {
   gasolina: 'Gasolina',
