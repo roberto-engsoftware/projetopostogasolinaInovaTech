@@ -1,6 +1,6 @@
 {
   "installCommand": "npm install",
-  "buildCommand": "npx expo export --platform web --clear",
+  "buildCommand": "rm -rf dist .expo node_modules/react-native-css-interop/.cache && mkdir -p node_modules/react-native-css-interop/.cache && echo \"\" > node_modules/react-native-css-interop/.cache/web.css && npx expo export --platform web",
   "outputDirectory": "dist",
   "env": {
     "NODE_ENV": "production"
